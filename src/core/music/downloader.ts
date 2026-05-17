@@ -1,5 +1,9 @@
 import { Linking, Platform } from 'react-native'
 import { getMusicUrl } from './index'
+import {
+  getPicUrl,
+  getLyricInfo,
+} from './online'
 import { getPlayQuality } from './utils'
 import settingState from '@/store/setting/state'
 import {
@@ -9,10 +13,13 @@ import {
   removeMusicDownloadTarget,
   scanMusicDownloadFile,
   stopDownload,
+  temporaryDirectoryPath,
 } from '@/utils/fs'
 import { filterFileName } from '@/utils/common'
 import { sizeFormate } from '@/utils'
 import { confirmDialog, requestStoragePermission, toast } from '@/utils/tools'
+import { writeLyric, writePic } from '@/utils/localMediaMetadata'
+import { buildLyrics } from '@/utils/lrcTools'
 
 const AUDIO_EXT_RXP = /\.([a-zA-Z0-9]{2,5})(?:\?|#|$)/
 const DOWNLOAD_USER_AGENT =
@@ -130,6 +137,68 @@ const parseExtByUrl = (url: string) => {
   return ext && ext.length <= 5 ? ext : 'mp3'
 }
 
+const parsePicExtByUrl = (url: string) => {
+  const ext = url.match(AUDIO_EXT_RXP)?.[1]?.toLowerCase()
+  return ext && ['jpg', 'jpeg', 'png', 'webp'].includes(ext) ? ext : 'jpg'
+}
+
+const writeDownloadPic = async(filePath: string, musicInfo: LX.Music.MusicInfoOnline) => {
+  if (!settingState.setting['download.isEmbedPic']) return
+
+  const picUrl = await getPicUrl({
+    musicInfo,
+    isRefresh: false,
+    allowToggleSource: true,
+  })
+  if (!picUrl) return
+
+  const picExt = parsePicExtByUrl(picUrl)
+  const picPath = `${temporaryDirectoryPath}/download-pic-${Date.now()}.${picExt}`.replace(/\/+/g, '/')
+  try {
+    const result = await downloadFile(picUrl, picPath).promise
+    if (result.statusCode >= 200 && result.statusCode < 300) {
+      await writePic(filePath, picPath)
+    }
+  } finally {
+    await removeMusicDownloadTarget(picPath).catch(() => {})
+  }
+}
+
+const writeDownloadLyric = async(filePath: string, musicInfo: LX.Music.MusicInfoOnline) => {
+  if (!settingState.setting['download.isEmbedLyric']) return
+
+  const lyricInfo = await getLyricInfo({
+    musicInfo,
+    isRefresh: false,
+    allowToggleSource: true,
+  })
+  const rawlrcInfo = lyricInfo.rawlrcInfo ?? lyricInfo
+  if (!rawlrcInfo.lyric) return
+
+  const lyric = buildLyrics(
+    rawlrcInfo,
+    settingState.setting['download.isEmbedLyricAwlrc'],
+    settingState.setting['download.isEmbedLyricTranslation'],
+    settingState.setting['download.isEmbedLyricRoma'],
+  )
+  if (lyric) await writeLyric(filePath, lyric)
+}
+
+const writeDownloadMetadata = async(filePath: string, musicInfo: LX.Music.MusicInfoOnline) => {
+  if (!settingState.setting['download.isEmbedPic'] && !settingState.setting['download.isEmbedLyric']) return
+
+  updateTaskState(getDownloadTaskKey(musicInfo), {
+    statusText: global.i18n.t('download_write_metadata'),
+  })
+
+  await writeDownloadPic(filePath, musicInfo).catch(err => {
+    console.warn('write download pic failed', err)
+  })
+  await writeDownloadLyric(filePath, musicInfo).catch(err => {
+    console.warn('write download lyric failed', err)
+  })
+}
+
 const ensureAndroidStorageForPublicDownload = async() => {
   if (Platform.OS !== 'android') return
 
@@ -215,6 +284,8 @@ const runDownloadMusicToLocal = async(musicInfo: LX.Music.MusicInfoOnline) => {
   if (result.statusCode < 200 || result.statusCode >= 300) {
     throw new Error(`download failed: ${result.statusCode}`)
   }
+
+  await writeDownloadMetadata(savePath, musicInfo)
 
   if (Platform.OS === 'android') {
     await scanMusicDownloadFile(savePath)
