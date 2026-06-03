@@ -1,0 +1,55 @@
+name: Build Xinghai Source
+
+on:
+  push:
+    branches:
+      - xinghai-source
+  workflow_dispatch:
+
+jobs:
+  Android:
+    name: Android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v4
+
+      - name: Setup Env
+        uses: ./.github/actions/setup
+
+      - name: Build Packages
+        env:
+          DISABLE_SVG: 1
+        shell: bash
+        run: |
+          cd android
+          echo "${{ secrets.KEYSTORE_STORE_FILE_BASE64 }}" | base64 --decode > "app/${{ secrets.KEYSTORE_STORE_FILE }}"
+          ./gradlew assembleRelease -PMYAPP_UPLOAD_STORE_FILE='${{ secrets.KEYSTORE_STORE_FILE }}' -PMYAPP_UPLOAD_KEY_ALIAS='${{ secrets.KEYSTORE_KEY_ALIAS }}' -PMYAPP_UPLOAD_STORE_PASSWORD='${{ secrets.KEYSTORE_PASSWORD }}' -PMYAPP_UPLOAD_KEY_PASSWORD='${{ secrets.KEYSTORE_KEY_PASSWORD }}'
+          rm -f "app/${{ secrets.KEYSTORE_STORE_FILE }}"
+
+      - name: Get package version
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+
+      - name: Rename APKs
+        shell: bash
+        run: |
+          cd android/app/build/outputs/apk/release
+          for f in lx-music-mobile-v${{ env.PACKAGE_VERSION }}-*.apk; do
+            [ -e "$f" ] || continue
+            base=${f%.apk}
+            mv "$f" "${base}-xinghai.apk"
+          done
+          ls -la
+
+      - name: Generate file MD5
+        run: |
+          cd android/app/build/outputs/apk/release
+          md5sum *-xinghai.apk
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: xinghai-source-v${{ env.PACKAGE_VERSION }}
+          path: android/app/build/outputs/apk/release/*-xinghai.apk
