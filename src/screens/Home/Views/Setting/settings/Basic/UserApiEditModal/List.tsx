@@ -27,7 +27,6 @@ const ListItem = ({ item, activeId, onRemove, onChangeAllowShowUpdateAlert }: {
   const theme = useTheme()
   const t = useI18n()
   const isBuiltin = isBuiltinUserApi(item.id)
-  const removable = !isBuiltin
   const changeAllowShowUpdateAlert = (check: boolean) => {
     onChangeAllowShowUpdateAlert(item.id, check)
   }
@@ -64,17 +63,11 @@ const ListItem = ({ item, activeId, onRemove, onChangeAllowShowUpdateAlert }: {
           size={0.86}
         />
       </View>
-      {
-        removable
-          ? (
-              <View style={styles.listItemRight}>
-                <TouchableOpacity style={styles.btn} onPress={handleRemove}>
-                  <Icon name="close" color={theme['c-button-font']} />
-                </TouchableOpacity>
-              </View>
-            )
-          : null
-      }
+      <View style={styles.listItemRight}>
+        <TouchableOpacity style={styles.btn} onPress={handleRemove}>
+          <Icon name="close" color={theme['c-button-font']} />
+        </TouchableOpacity>
+      </View>
     </View>
   )
 }
@@ -95,7 +88,6 @@ export default () => {
   const t = useI18n()
 
   const handleRemove = useCallback(async(id: string, name: string) => {
-    if (isBuiltinUserApi(id)) return
     const confirm = await confirmDialog({
       message: global.i18n.t('user_api_remove_tip', { name }),
       cancelButtonText: global.i18n.t('cancel_button_text_2'),
@@ -105,8 +97,8 @@ export default () => {
     if (!confirm) return
     void removeUserApi([id]).finally(() => {
       if (settingState.setting['common.apiSource'] == id) {
-        let backApiId = apiSourceInfo.find(api => !api.disabled)?.id
-        if (!backApiId) backApiId = userApiState.list[0]?.id
+        let backApiId = userApiState.list.find(api => api.id != id)?.id
+        if (!backApiId) backApiId = apiSourceInfo.find(api => !api.disabled)?.id
         setApiSource(backApiId ?? '')
       }
     })

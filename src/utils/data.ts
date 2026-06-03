@@ -1,7 +1,7 @@
 import { getData, saveData, getAllKeys, removeDataMultiple, saveDataMultiple, removeData, getDataMultiple } from '@/plugins/storage'
 import { DEFAULT_SETTING, LIST_IDS, storageDataPrefix, type NAV_ID_Type } from '@/config/constant'
 import { throttle } from './common'
-import { getBuiltinUserApiInfo, getBuiltinUserApiScript, isBuiltinUserApi } from '@/config/builtinUserApi'
+import { getBuiltinUserApiInfos, getBuiltinUserApiScript, isBuiltinUserApi } from '@/config/builtinUserApi'
 // import { gzip, ungzip } from '@/utils/nativeModules/gzip'
 // import { readFile, writeFile, temporaryDirectoryPath, unlink } from '@/utils/fs'
 // import { isNotificationsEnabled, openNotificationPermissionActivity, shareText } from '@/utils/nativeModules/utils'
@@ -28,6 +28,7 @@ const syncHostHistoryPrefix = storageDataPrefix.syncHostHistory
 const listPrefix = storageDataPrefix.list
 const dislikeListPrefix = storageDataPrefix.dislikeList
 const userApiPrefix = storageDataPrefix.userApi
+const removedBuiltinUserApiKey = `${userApiPrefix}removed_builtin`
 const openStoragePathPrefix = storageDataPrefix.openStoragePath
 const selectedManagedFolderPrefix = storageDataPrefix.selectedManagedFolder
 
@@ -496,7 +497,22 @@ export const removeSyncHostHistory = async(index: number) => {
 }
 
 let userApis: LX.UserApi.UserApiInfo[] = []
-const getAllUserApis = () => [getBuiltinUserApiInfo(), ...userApis]
+let removedBuiltinUserApiIds: string[] | undefined
+const getRemovedBuiltinUserApiIds = async() => {
+  removedBuiltinUserApiIds ??= (await getData<string[]>(removedBuiltinUserApiKey) ?? []).filter(id => isBuiltinUserApi(id))
+  return removedBuiltinUserApiIds
+}
+const saveRemovedBuiltinUserApiIds = async(ids: string[]) => {
+  removedBuiltinUserApiIds = [...new Set(ids.filter(id => isBuiltinUserApi(id)))]
+  await saveData(removedBuiltinUserApiKey, removedBuiltinUserApiIds)
+}
+const getAllUserApis = async() => {
+  const removedIds = await getRemovedBuiltinUserApiIds()
+  return [
+    ...getBuiltinUserApiInfos().filter(info => !removedIds.includes(info.id)),
+    ...userApis,
+  ]
+}
 export const getUserApiList = async(): Promise<LX.UserApi.UserApiInfo[]> => {
   userApis = await getData<LX.UserApi.UserApiInfo[]>(userApiPrefix) ?? []
 
@@ -519,7 +535,7 @@ export const getUserApiList = async(): Promise<LX.UserApi.UserApiInfo[]> => {
   return getAllUserApis()
 }
 export const getUserApiScript = async(id: string): Promise<string> => {
-  if (isBuiltinUserApi(id)) return getBuiltinUserApiScript()
+  if (isBuiltinUserApi(id)) return getBuiltinUserApiScript(id)
   const script = await getData<string>(`${userApiPrefix}${id}`) ?? ''
   return script
 }
@@ -572,6 +588,12 @@ export const addUserApi = async(script: string): Promise<LX.UserApi.UserApiInfo>
   return apiInfo
 }
 export const removeUserApi = async(ids: string[]) => {
+  const builtinIds = ids.filter(id => isBuiltinUserApi(id))
+  if (builtinIds.length) {
+    const removedIds = await getRemovedBuiltinUserApiIds()
+    await saveRemovedBuiltinUserApiIds([...removedIds, ...builtinIds])
+  }
+
   ids = ids.filter(id => !isBuiltinUserApi(id))
   if (!ids.length) return getAllUserApis()
   if (!userApis) return []
