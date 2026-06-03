@@ -1,7 +1,7 @@
 import { getData, saveData, getAllKeys, removeDataMultiple, saveDataMultiple, removeData, getDataMultiple } from '@/plugins/storage'
 import { DEFAULT_SETTING, LIST_IDS, storageDataPrefix, type NAV_ID_Type } from '@/config/constant'
 import { throttle } from './common'
-import { BUILTIN_USER_API_ID, getBuiltinUserApiInfo, getBuiltinUserApiScript, isBuiltinUserApi } from '@/config/builtinUserApi'
+import { getBuiltinUserApiInfo, getBuiltinUserApiScript, isBuiltinUserApi } from '@/config/builtinUserApi'
 // import { gzip, ungzip } from '@/utils/nativeModules/gzip'
 // import { readFile, writeFile, temporaryDirectoryPath, unlink } from '@/utils/fs'
 // import { isNotificationsEnabled, openNotificationPermissionActivity, shareText } from '@/utils/nativeModules/utils'
@@ -504,7 +504,7 @@ export const getUserApiList = async(): Promise<LX.UserApi.UserApiInfo[]> => {
   let updated = false
   for (let index = userApis.length - 1; index > -1; index--) {
     const info = userApis[index]
-    if (info.id == BUILTIN_USER_API_ID) {
+    if (isBuiltinUserApi(info.id)) {
       userApis.splice(index, 1)
       updated = true
       continue

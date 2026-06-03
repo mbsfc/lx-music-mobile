@@ -1,9 +1,9 @@
-name: Build Xinghai Source
+name: Build Yehua Source
 
 on:
   push:
     branches:
-      - xinghai-source
+      - yehua-source
   workflow_dispatch:
 
 jobs:
@@ -39,17 +39,17 @@ jobs:
           for f in lx-music-mobile-v${{ env.PACKAGE_VERSION }}-*.apk; do
             [ -e "$f" ] || continue
             base=${f%.apk}
-            mv "$f" "${base}-xinghai.apk"
+            mv "$f" "${base}-yehua.apk"
           done
           ls -la
 
       - name: Generate file MD5
         run: |
           cd android/app/build/outputs/apk/release
-          md5sum *-xinghai.apk
+          md5sum *-yehua.apk
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: xinghai-source-v${{ env.PACKAGE_VERSION }}
-          path: android/app/build/outputs/apk/release/*-xinghai.apk
+          name: yehua-source-v${{ env.PACKAGE_VERSION }}
+          path: android/app/build/outputs/apk/release/*-yehua.apk

@@ -30,11 +30,11 @@ const defaultSetting: LX.AppSetting = {
   'player.isAutoCleanPlayedList': false,
   'player.isHandleAudioFocus': true,
   'player.isEnableAudioOffload': true,
-  'player.isShowLyricTranslation': false,
+  'player.isShowLyricTranslation': true,
   'player.isShowLyricRoma': false,
   'player.isShowNotificationImage': true,
   'player.isS2t': false,
-  'player.isShowBluetoothLyric': false,
+  'player.isShowBluetoothLyric': true,
   'player.isShowBluetoothFullLyric': false,
 
   // 'playDetail.isZoomActiveLrc': false,
@@ -73,8 +73,8 @@ const defaultSetting: LX.AppSetting = {
   'download.fileName': '歌名 - 歌手',
   'download.savePath': '',
   'download.quality': '320k',
-  'download.isEmbedPic': false,
-  'download.isEmbedLyric': false,
+  'download.isEmbedPic': true,
+  'download.isEmbedLyric': true,
   'download.isEmbedLyricTranslation': false,
   'download.isEmbedLyricRoma': false,
   'download.isEmbedLyricAwlrc': false,
@@ -82,19 +82,11 @@ const defaultSetting: LX.AppSetting = {
   'sync.enable': false,
 
   // 'theme.id': 'blue_plus',
-  'theme.id': 'green',
-  'theme.lightId': 'green',
+  'theme.id': 'pink',
+  'theme.lightId': 'pink',
   'theme.darkId': 'black',
   'theme.hideBgDark': false,
   'theme.dynamicBg': false,
   'theme.fontShadow': false,
 }
-
-
-// 使用新年皮肤
-if (new Date().getMonth() < 2) {
-  defaultSetting['theme.id'] = 'happy_new_year'
-  defaultSetting['desktopLyric.style.lyricPlayedColor'] = 'rgba(255, 18, 34, 1)'
-}
-
 export default defaultSetting
